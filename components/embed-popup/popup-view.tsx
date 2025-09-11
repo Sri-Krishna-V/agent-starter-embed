@@ -1,27 +1,57 @@
 'use client';
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Track } from 'livekit-client';
 import { AnimatePresence, motion } from 'motion/react';
-import { type AgentState, useRoomContext, useVoiceAssistant } from '@livekit/components-react';
+import {
+  type AgentState,
+  type TrackReference,
+  useLocalParticipant,
+  useRoomContext,
+  useTracks,
+  useVoiceAssistant,
+} from '@livekit/components-react';
 import { ActionBar } from '@/components/embed-popup/action-bar';
 import { AudioVisualizer } from '@/components/embed-popup/audio-visualizer';
 import { Transcript } from '@/components/embed-popup/transcript';
 import { AvatarTile } from '@/components/livekit/avatar-tile';
 import useChatAndTranscription from '@/hooks/use-chat-and-transcription';
 import { useDebugMode } from '@/hooks/useDebug';
-import type { EmbedErrorDetails } from '@/lib/types';
+import type { AppConfig, EmbedErrorDetails } from '@/lib/types';
+import { cn } from '@/lib/utils';
+
+const TILE_TRANSITION = {
+  type: 'spring',
+  stiffness: 675,
+  damping: 75,
+  mass: 1,
+};
+
+const TranscriptMotion = motion.create(Transcript);
+
+export function useLocalTrackRef(source: Track.Source) {
+  const { localParticipant } = useLocalParticipant();
+  const publication = localParticipant.getTrackPublication(source);
+  const trackRef = useMemo<TrackReference | undefined>(
+    () => (publication ? { source, participant: localParticipant, publication } : undefined),
+    [source, publication, localParticipant]
+  );
+  return trackRef;
+}
 
 function isAgentAvailable(agentState: AgentState) {
   return agentState == 'listening' || agentState == 'thinking' || agentState == 'speaking';
 }
 
 type PopupProps = {
+  appConfig: AppConfig;
   disabled: boolean;
   sessionStarted: boolean;
   onEmbedError: React.Dispatch<React.SetStateAction<EmbedErrorDetails | null>>;
 };
 
 export const PopupView = ({
+  appConfig,
   disabled,
   sessionStarted,
   onEmbedError,
@@ -35,8 +65,23 @@ export const PopupView = ({
     audioTrack: agentAudioTrack,
     videoTrack: agentVideoTrack,
   } = useVoiceAssistant();
-
+  const { isCameraEnabled, isScreenShareEnabled } = useLocalParticipant();
+  const [screenShareTrack] = useTracks([Track.Source.ScreenShare]);
+  const cameraTrack: TrackReference | undefined = useLocalTrackRef(Track.Source.Camera);
+  const [chatOpen, setChatOpen] = useState(false);
   const { messages, send } = useChatAndTranscription();
+
+  const { supportsChatInput, supportsVideoInput, supportsScreenShare } = appConfig;
+  const capabilities = {
+    supportsChatInput,
+    supportsVideoInput,
+    supportsScreenShare,
+  };
+
+  async function onSendMessage(message: string) {
+    await send(message);
+    return;
+  }
 
   // If the agent hasn't connected after an interval,
   // then show an error - something must not be working
@@ -66,11 +111,34 @@ export const PopupView = ({
     <div ref={ref} inert={disabled} className="flex h-full w-full flex-col overflow-hidden">
       <div className="relative flex h-full shrink-1 grow-1 flex-col py-1">
         {/* Audio visualizer */}
-        <AudioVisualizer
-          agentState={agentState}
-          audioTrack={agentAudioTrack}
-          videoTrack={agentVideoTrack}
-        />
+        <AnimatePresence>
+          {!agentVideoTrack && (
+            <motion.div
+              key="audio-visualizer"
+              className={cn(
+                'bg-bg2 dark:bg-bg1 pointer-events-none absolute z-10 flex aspect-[1.5] w-64 items-center justify-center rounded-2xl border border-transparent transition-colors',
+                chatOpen && 'bg-bg1 border-separator1 drop-shadow-2xl'
+              )}
+              initial={{
+                scale: 1,
+                left: '50%',
+                top: '50%',
+                translateX: '-50%',
+                translateY: '-50%',
+                transformOrigin: 'center top',
+              }}
+              animate={{
+                left: chatOpen && (isCameraEnabled || isScreenShareEnabled) ? '33%' : '50%',
+                scale: chatOpen ? 0.4 : 1,
+                top: chatOpen ? '12px' : '50%',
+                translateY: chatOpen ? '0' : '-50%',
+              }}
+              transition={TILE_TRANSITION}
+            >
+              <AudioVisualizer agentState={agentState} audioTrack={agentAudioTrack} />
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Avatar visualizer */}
         <AnimatePresence>
@@ -80,14 +148,27 @@ export const PopupView = ({
               initial={{
                 maskImage:
                   'radial-gradient(circle, rgba(0, 0, 0, 1) 0, rgba(0, 0, 0, 1) 40px, transparent 40px)',
+                filter: 'blur(20px)',
               }}
               animate={{
+                opacity: chatOpen ? 0.1 : 1,
                 maskImage:
                   'radial-gradient(circle, rgba(0, 0, 0, 1) 0, rgba(0, 0, 0, 1) 500px, transparent 500px)',
+                filter: 'blur(0px)',
               }}
               transition={{
-                type: 'linear',
-                duration: 1,
+                opacity: {
+                  ease: 'linear',
+                  duration: 0.2,
+                },
+                maskImage: {
+                  ease: 'linear',
+                  duration: 1,
+                },
+                filter: {
+                  ease: 'linear',
+                  duration: 1,
+                },
               }}
               className="pointer-events-none absolute inset-1 z-10 overflow-hidden rounded-[24px]"
             >
@@ -96,11 +177,63 @@ export const PopupView = ({
           )}
         </AnimatePresence>
 
+        {/* camera tile */}
+        <AnimatePresence>
+          {((cameraTrack && isCameraEnabled) || (screenShareTrack && isScreenShareEnabled)) && (
+            <motion.div
+              key="camera"
+              initial={{
+                scale: 0.5,
+                opacity: 0,
+                right: '12px',
+                top: '346px',
+              }}
+              animate={{
+                scale: 1,
+                opacity: 1,
+                top: chatOpen ? '12px' : '346px',
+                right: chatOpen ? (agentVideoTrack ? '140px' : '70px') : '12px',
+              }}
+              exit={{
+                scale: 0.5,
+                opacity: 0,
+              }}
+              transition={TILE_TRANSITION}
+              className="pointer-events-none absolute z-10 overflow-hidden rounded-md"
+            >
+              <AvatarTile
+                videoTrack={cameraTrack || screenShareTrack}
+                className="aspect-square w-[70px] bg-black object-cover"
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {/* Transcript */}
-        <Transcript messages={messages} />
+        <TranscriptMotion
+          initial={{
+            y: 10,
+            opacity: 0,
+          }}
+          animate={{
+            y: chatOpen ? 0 : 10,
+            opacity: chatOpen ? 1 : 0,
+          }}
+          transition={{
+            type: 'spring',
+            duration: 0.5,
+            bounce: 0,
+          }}
+          messages={messages}
+          className="relative z-30"
+        />
 
         {/* action bar */}
-        <ActionBar onSend={send} />
+        <ActionBar
+          onSendMessage={onSendMessage}
+          capabilities={capabilities}
+          onChatOpenChange={setChatOpen}
+        />
       </div>
     </div>
   );

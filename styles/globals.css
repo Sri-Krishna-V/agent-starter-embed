@@ -249,7 +249,7 @@
   .scrollbar-custom,
   .scrollbar-on-hover {
     scrollbar-width: thin;
-    scrollbar-gutter: stable;
+    scrollbar-gutter: stable both-edges;
     scrollbar-color: var(--fg4) transparent;
   }
 

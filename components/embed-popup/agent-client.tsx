@@ -21,7 +21,8 @@ function AgentClient({ appConfig }: EmbedFixedAgentClientProps) {
   const room = useMemo(() => new Room(), []);
   const [popupOpen, setPopupOpen] = useState(false);
   const [error, setError] = useState<EmbedErrorDetails | null>(null);
-  const { connectionDetails, refreshConnectionDetails } = useConnectionDetails();
+  const { connectionDetails, refreshConnectionDetails, existingOrRefreshConnectionDetails } =
+    useConnectionDetails(appConfig);
 
   const handleTogglePopup = () => {
     if (isAnimating.current) {
@@ -79,12 +80,14 @@ function AgentClient({ appConfig }: EmbedFixedAgentClientProps) {
     }
 
     const connect = async () => {
-      try {
-        await room.connect(connectionDetails.serverUrl, connectionDetails.participantToken);
-        await room.localParticipant.setMicrophoneEnabled(true, undefined, {
+      Promise.all([
+        room.localParticipant.setMicrophoneEnabled(true, undefined, {
           preConnectBuffer: appConfig.isPreConnectBufferEnabled,
-        });
-      } catch (error: unknown) {
+        }),
+        existingOrRefreshConnectionDetails().then((connectionDetails) =>
+          room.connect(connectionDetails.serverUrl, connectionDetails.participantToken)
+        ),
+      ]).catch((error) => {
         if (error instanceof Error) {
           console.error('Error connecting to agent:', error);
           setError({
@@ -92,11 +95,17 @@ function AgentClient({ appConfig }: EmbedFixedAgentClientProps) {
             description: `${error.name}: ${error.message}`,
           });
         }
-      }
+      });
     };
 
     connect();
-  }, [room, popupOpen, connectionDetails, appConfig.isPreConnectBufferEnabled]);
+  }, [
+    room,
+    popupOpen,
+    connectionDetails,
+    existingOrRefreshConnectionDetails,
+    appConfig.isPreConnectBufferEnabled,
+  ]);
 
   return (
     <RoomContext.Provider value={room}>
@@ -129,6 +138,7 @@ function AgentClient({ appConfig }: EmbedFixedAgentClientProps) {
             <ErrorMessage error={error} />
             {!error && (
               <PopupViewMotion
+                appConfig={appConfig}
                 initial={{ opacity: 1 }}
                 animate={{ opacity: error === null ? 1 : 0 }}
                 transition={{
