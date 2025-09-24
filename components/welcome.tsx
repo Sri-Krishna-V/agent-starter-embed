@@ -46,14 +46,14 @@ export default function Welcome() {
                 >
                   {embedUrl}
                 </a>
-                {`"\n  style="width: 320px; height: 64px;"\n></iframe>`}
+                {`"\n  style="width: 382px; height: 85px;"\n></iframe>`}
               </code>
             </pre>
           </div>
           <div className="flex justify-center mt-6">
             <iframe
               src={embedUrl}
-              style={{ width: 320, height: 64 }}
+              style={{ width: 385, height: 1000 }}
               className="opacity-100 transition-opacity duration-500 [@starting-style]:opacity-0"
             />
           </div>

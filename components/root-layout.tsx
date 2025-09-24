@@ -48,7 +48,8 @@ export async function RootLayout({ children, className }: RootLayoutProps) {
 
   const styles = [
     accent ? `:root { --primary: ${accent}; }` : '',
-    accentDark ? `.dark { --primary: ${accentDark}; }` : '',
+    // Commented out dark theme styles
+    // accentDark ? `.dark { --primary: ${accentDark}; }` : '',
   ]
     .filter(Boolean)
     .join('\n');

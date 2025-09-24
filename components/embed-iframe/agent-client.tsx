@@ -78,7 +78,7 @@ function EmbedAgentClient({ appConfig }: AppProps) {
   }, [room, sessionStarted, connectionDetails, appConfig.isPreConnectBufferEnabled]);
 
   return (
-    <div className="bg-background relative h-16 rounded-full border px-3">
+    <div className="bg-white text-gray-900 relative h-16 rounded-2xl border border-gray-200 shadow-sm" style={{backgroundColor: '#ffffff', color: '#111827'}}>
       <MotionWelcomeView
         key="welcome"
         onStartCall={() => setSessionStarted(true)}
@@ -103,20 +103,22 @@ function EmbedAgentClient({ appConfig }: AppProps) {
         }}
         className="h-full w-full"
       >
-        <div className="flex h-full items-center justify-between gap-1 gap-4 pl-3">
-          <div className="pl-3">
+        <div className="flex h-full items-center justify-between gap-3 px-4">
+          <div className="flex-shrink-0">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/lk-logo.svg" alt="LiveKit Logo" className="block size-6 dark:hidden" />
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/lk-logo-dark.svg" alt="LiveKit Logo" className="hidden size-6 dark:block" />
+            <img src={appConfig.logo} alt="AI Assistant Avatar" className="size-8 rounded-full" />
           </div>
 
-          <div className="flex flex-col justify-center">
-            <span className="text-sm font-medium">{currentError?.title}</span>
-            <span className="text-xs">{currentError?.description}</span>
+          <div className="flex flex-col justify-center flex-1">
+            <span className="text-sm font-medium text-gray-800">{currentError?.title}</span>
+            <span className="text-xs text-gray-600">{currentError?.description}</span>
           </div>
 
-          <Button size="icon" onClick={() => setCurrentError(null)}>
+          <Button 
+            size="icon" 
+            onClick={() => setCurrentError(null)}
+            className="flex-shrink-0 bg-gray-100 hover:bg-gray-200 text-gray-600"
+          >
             <XIcon />
           </Button>
         </div>

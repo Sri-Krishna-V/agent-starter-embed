@@ -1,8 +1,17 @@
-<img src="./.github/assets/app-icon.png" alt="Voice Assistant App Icon" width="100" height="100">
+<img src="./.github/assets/app-icon.png" alt="AI Sales Assistant App Icon" width="100" height="100">
 
-# LiveKit Agent iFrame Embed Starter
+# AI Sales Assistant iFrame Embed
 
-This is a starter template for [LiveKit Agents](https://docs.livekit.io/agents) that provides an example of how you might approach building an iFrame embed using the [LiveKit JavaScript SDK](https://github.com/livekit/client-sdk-js). It supports [voice](https://docs.livekit.io/agents/start/voice-ai) and [transcriptions](https://docs.livekit.io/agents/build/text/).
+This is a customized AI sales assistant embed built on the [LiveKit Agents](https://docs.livekit.io/agents) starter template. It provides a compact, embeddable widget for websites that allows visitors to start voice conversations with an AI sales agent.
+
+## Key Features
+
+- **Compact Widget Design**: Horizontal layout optimized for embedding in any website
+- **Light Theme Only**: Clean, professional appearance focused on light theme
+- **Multi-language Support**: Currently supports English (us) and Hindi (hi) 
+- **Voice-First Experience**: Optimized for voice conversations with visual feedback
+- **Customizable Branding**: Easy to replace robot avatar with company logo
+- **Responsive Design**: Works seamlessly across different screen sizes
 
 This template is built with Next.js and is free for you to use or modify as you see fit.
 
@@ -33,9 +42,52 @@ You'll also need an agent to speak with. Try our starter agent for [Python](http
 > [!NOTE]
 > If you need to modify the LiveKit project credentials used, you can edit `.env.local` (copy from `.env.example` if you don't have one) to suit your needs.
 
+## Customization
+
+### Replacing the Robot Avatar
+The current implementation uses a placeholder robot avatar (`/robot-avatar.svg`). To customize:
+
+1. Replace `/public/robot-avatar.svg` with your company logo
+2. Update the `logo` path in `app-config.ts`
+3. Ensure your logo is optimized for a 32x32px display size
+
+### Language Configuration
+Currently supports two languages:
+- **English (us)**: Default option
+- **Hindi (hi)**: Secondary option
+
+To modify language options, edit the `<select>` element in `components/embed-iframe/welcome-view.tsx`.
+
+### Styling Customization
+The widget uses a light-theme-only design. Key styling files:
+- `app-config.ts`: Primary configuration (colors, text, branding)
+- `components/embed-iframe/welcome-view.tsx`: Welcome screen layout
+- `components/embed-iframe/agent-client.tsx`: Main container styling
+- `styles/globals.css`: Global theme variables (dark theme commented out)
+
+### Theme Configuration
+Dark theme is currently disabled to maintain consistency. If you need to re-enable it:
+1. Uncomment dark theme styles in `styles/globals.css`
+2. Update `theme-provider.tsx` to allow theme switching
+3. Test all components for dark theme compatibility
+
 ## Local Development
 
-<http://localhost:3000> will respond to code changes in real time through [NextJS Fast Refresh](https://nextjs.org/docs/architecture/fast-refresh) to support a rapid iteration feedback loop.
+<http://localhost:3001> will respond to code changes in real time through [NextJS Fast Refresh](https://nextjs.org/docs/architecture/fast-refresh) to support a rapid iteration feedback loop.
+
+The embed can be accessed directly at: `http://localhost:3001/embed`
+
+## Embedding in Your Website
+
+```html
+<iframe 
+  src="https://your-domain.com/embed" 
+  width="320" 
+  height="64" 
+  frameborder="0"
+  style="border: none; border-radius: 16px;">
+</iframe>
+```
 
 ## Contributing
 

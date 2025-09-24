@@ -93,7 +93,7 @@ export const SessionView = ({
         transition={{ duration: 0.3, delay: sessionStarted ? 0.5 : 0, ease: 'easeOut' }}
       >
         <div aria-label="Voice assistant controls" className="absolute inset-0">
-          <div className="flex h-full flex-row items-center justify-between gap-1 px-3">
+          <div className="flex h-full flex-row items-center justify-between gap-3 px-4">
             <div className="flex gap-1">
               {visibleControls.microphone ? (
                 <div className="flex items-center gap-0">
@@ -142,34 +142,64 @@ export const SessionView = ({
               {/* FIXME: do I need to handle the other channels here? */}
             </div>
 
-            {appConfig.isPreConnectBufferEnabled ? (
-              <div className="absolute left-1/2 flex h-full -translate-x-1/2 items-center justify-center gap-2">
-                <BarVisualizer
-                  barCount={3}
-                  trackRef={agentAudioTrack}
-                  options={{ minHeight: 5 }}
-                  className="absolute -left-5 flex h-6 w-auto items-center justify-center gap-0.5"
-                >
-                  <span
-                    className={cn([
-                      'h-full w-0.5 origin-center rounded-2xl',
-                      'bg-fg1',
-                      'data-lk-muted:bg-muted',
-                    ])}
-                  />
-                </BarVisualizer>
+            {/* Center content - AI status and avatar */}
+            <div className="flex items-center gap-3 flex-1 justify-center">
+              {/* AI Avatar */}
+              <div className="flex-shrink-0">
+                <img 
+                  src={appConfig.logo}
+                  alt="AI Assistant Avatar" 
+                  className="size-8 rounded-full"
+                />
+              </div>
+              
+              {/* Status and visualizer */}
+              <div className="flex items-center gap-2">
+                {appConfig.isPreConnectBufferEnabled && (
+                  <BarVisualizer
+                    barCount={3}
+                    trackRef={agentAudioTrack}
+                    options={{ minHeight: 5 }}
+                    className="flex h-6 w-auto items-center justify-center gap-0.5"
+                  >
+                    <span
+                      className={cn([
+                        'h-full w-0.5 origin-center rounded-2xl',
+                        'bg-gray-600',
+                        'data-lk-muted:bg-gray-300',
+                      ])}
+                    />
+                  </BarVisualizer>
+                )}
 
-                <p className="animate-text-shimmer inline-block !bg-clip-text text-sm font-semibold text-transparent">
-                  Agent listening
+                <p className="text-sm font-medium text-gray-700">
+                  {agentState === 'listening' && 'Listening...'}
+                  {agentState === 'thinking' && 'Thinking...'}
+                  {agentState === 'speaking' && 'Speaking...'}
+                  {agentState === 'connecting' && 'Connecting...'}
+                  {agentState === 'initializing' && 'Starting...'}
                 </p>
               </div>
-            ) : null}
+            </div>
 
             {visibleControls.leave ? (
-              <Button variant="destructive" onClick={onLeave} className="font-mono">
-                <PhoneDisconnectIcon weight="bold" />
-                <span className="hidden uppercase md:inline">End Call</span>
-                <span className="inline uppercase md:hidden">End</span>
+              <Button 
+                onClick={onLeave} 
+                className="px-4 py-2 rounded-full text-sm font-medium flex items-center gap-1 flex-shrink-0"
+                style={{
+                  backgroundColor: '#dc2626',
+                  color: '#ffffff',
+                  border: 'none',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = '#b91c1c';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = '#dc2626';
+                }}
+              >
+                <PhoneDisconnectIcon weight="bold" size={16} />
+                <span className="text-xs">End</span>
               </Button>
             ) : null}
           </div>

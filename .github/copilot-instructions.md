@@ -1,212 +1,157 @@
-# LiveKit Agent iFrame Embed Starter - AI Coding Instructions
+# LiveKit Agent iFrame Embed Starter
 
-## Project Overview
-This is a **Next.js application** that provides an iFrame embed solution to embed LiveKit voice agents into external websites:
-1. **iFrame embed** (`/embed`) - Server-rendered iframe for easy integration
+## Project Overview  
+This is a **Next.js 15 application** that provides a single iFrame embed solution for LiveKit voice agents. The app creates a minimal, embeddable voice assistant interface that external websites can integrate via `<iframe>` tags.
 
 ## Key Architecture Patterns
 
-### Build System
-- **Next.js** builds the main app and iframe embed (`pnpm dev`, `pnpm build`)
+### Next.js App Router Structure
+- `app/(app)/` - Main demo page showing embed code and live preview
+- `app/(iframe)/embed/` - The embeddable iFrame endpoint (**this is what gets embedded**)
+- `app/api/connection-details/` - Token server for LiveKit room access
 
-### Configuration System
-- `app-config.ts` defines default UI/branding settings via `APP_CONFIG_DEFAULTS`
-- Runtime config fetched from `CONFIG_ENDPOINT` with sandbox support
-- `lib/env.ts` handles environment-based config resolution
-- Config affects both embed variants uniformly
+### LiveKit Integration Flow
+1. **Connection**: `hooks/use-connection-details.ts` fetches random room/participant names + access token from `/api/connection-details`
+2. **Room Lifecycle**: Each embed instance creates isolated LiveKit rooms with server-generated tokens
+3. **Agent Communication**: Uses `@livekit/components-react` hooks (`useVoiceAssistant`, `useRoomContext`) for real-time agent interaction
 
-### Route Groups Pattern
-- `app/(app)/` - Main demo/documentation pages
-- `app/(iframe)/embed/` - iFrame embed endpoint 
-- `app/api/connection-details/` - LiveKit room/token generation
-
-### LiveKit Integration
-- `hooks/use-connection-details.ts` manages room connection lifecycle
-- Each session creates random room/participant names for isolation
-- Access tokens generated server-side with required LiveKit permissions
-- Environment variables: `LIVEKIT_URL`, `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET`
+### Configuration-Driven Customization
+- `app-config.ts` exports `APP_CONFIG_DEFAULTS` - **modify this for branding/features**
+- Key config: `logo`, `accent`, `startButtonText`, `supportsChatInput`, `supportsVideoInput`
+- Environment: requires `LIVEKIT_URL`, `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET` in `.env.local`
 
 ## Critical Development Workflows
 
-### Testing iFrame Locally
+### Local Development
 ```bash
-pnpm dev                        # Start Next.js dev server
-# Test iframe: http://localhost:3000
+pnpm dev        # Next.js dev server (usually http://localhost:3000)
+# Main page shows embed code + live iframe preview
+# Test actual embed at: /embed?theme=dark
 ```
 
-### Production Deployment
-- iFrame embed updates automatically with Next.js deployment
-
-## Component Architecture
-
-### Embed Components Structure
-- `components/embed-iframe/agent-client.tsx` - Main iframe embed logic
+### Component Structure (iFrame-specific)
+- `components/embed-iframe/agent-client.tsx` - **Main embed container**
+- `components/embed-iframe/welcome-view.tsx` - Pre-connection UI (logo + start button)  
+- `components/embed-iframe/session-view.tsx` - Active conversation UI (visualizer + controls)
 
 ### Theme System
-- `components/theme-toggle.tsx` with `ApplyThemeScript` for SSR theme consistency
-- Theme preference persisted in localStorage with `THEME_STORAGE_KEY`
-- CSS custom properties in `styles/globals.css` support light/dark modes
-- Iframe embed receives theme via URL params
+- CSS custom properties in `styles/globals.css` (--fg0, --bg1, --bgAccent, etc.)
+- Theme passed via URL params: `/embed?theme=dark`
+- `components/theme-toggle.tsx` persists preference in localStorage
 
-### State Management
-- Room connection state managed in individual embed components
-- No global state management - each embed instance is independent
-- `useConnectionDetails` hook abstracts connection lifecycle
-
-## Integration Points
-
-### External Website Integration
-**iFrame approach:**
-```html
-<iframe src="https://yourapp.com/embed?theme=dark" width="400" height="600"></iframe>
-```
-
-### Environment Setup
-- Copy `.env.example` to `.env.local` for local development
-- Production requires LiveKit Cloud project credentials
-- Sandbox deployments use `SANDBOX_ID` for config isolation
-
-## Development Conventions
-- TypeScript strict mode with Next.js 15 app router
-- Tailwind CSS with custom design system (see `components/ui/`)
-- `@livekit/components-react` for voice/video UI primitives
-- Motion animations via Framer Motion (`motion/react`)
-- pnpm for package management
-
-## LiveKit Agent Integration Patterns
+## Critical LiveKit Patterns
 
 ### Agent State Management
-- **Voice Assistant Hook**: `useVoiceAssistant()` provides agent state (`listening`, `thinking`, `speaking`)
-- **Agent Availability**: Use `isAgentAvailable(agentState)` to check if agent can respond
-- **Audio Visualization**: `BarVisualizer` component shows real-time audio levels from agent
-- **Track References**: Agent audio track accessed via `audioTrack` from `useVoiceAssistant()`
-
-### Room Connection Lifecycle
 ```typescript
-// Connection flow in hooks/use-connection-details.ts
-1. Generate random room/participant names for isolation
-2. Fetch access token from /api/connection-details
-3. Connect to LiveKit room with token
-4. Handle reconnection on disconnect
+// In session-view.tsx - the core pattern:
+const { state: agentState, audioTrack: agentAudioTrack } = useVoiceAssistant();
+
+// Agent states: 'disconnected' | 'connecting' | 'initializing' | 'listening' | 'thinking' | 'speaking'
+function isAgentAvailable(agentState: AgentState) {
+  return agentState == 'listening' || agentState == 'thinking' || agentState == 'speaking';
+}
 ```
 
-### Agent Control Patterns
-- **Control Bar Hook**: `useAgentControlBar()` manages microphone, camera, screen share toggles
-- **Device Management**: Persistent user choices for audio/video devices via `usePersistentUserChoices`
-- **Permission System**: `usePublishPermissions()` controls which features are available
-- **Track Toggles**: `useTrackToggle()` for mic/camera with error handling
-
-### Chat & Transcription Integration
-- **Combined Messages**: `useChatAndTranscription()` merges agent transcriptions with user chat
-- **Real-time Updates**: Transcriptions automatically converted to chat messages
-- **Message Sorting**: Combined messages sorted by timestamp for proper conversation flow
-
-## UI Customization & Design System
-
-### Configuration-Based Customization
-**Primary Config**: Modify `app-config.ts` for basic branding:
+### Control Bar Pattern 
 ```typescript
+// useAgentControlBar hook manages mic/camera/screen share
+const { microphoneToggle, handleDisconnect, visibleControls } = useAgentControlBar({
+  controls: { microphone: true },  // Only show mic toggle
+  saveUserChoices: true,           // Persist device preferences
+});
+```
+
+### Connection Lifecycle
+- `useConnectionDetails()` → `/api/connection-details` → random room + participant token
+- Auto-connect when session starts: `room.connect(serverUrl, participantToken)`
+- Enable microphone with `preConnectBuffer` for smoother UX
+
+## Development Conventions  
+- **TypeScript strict mode** with Next.js 15 app router
+- **Tailwind CSS** with custom design tokens (`--fg0`, `--bg1`, etc.)
+- **Motion animations** via `motion/react` for state transitions
+- **pnpm** for package management  
+- **LiveKit Components**: Extend `@livekit/components-react` primitives
+
+## External Integration
+```html
+<!-- Embed in any website -->
+<iframe src="https://your-app.com/embed?theme=dark" 
+        style="width: 320px; height: 64px; border: none;">
+</iframe>
+```
+
+## Common Development Tasks
+
+### UI Customization
+```typescript
+// app-config.ts - Primary branding/feature config
 export const APP_CONFIG_DEFAULTS: AppConfig = {
   companyName: 'Your Company',
-  pageTitle: 'Your Voice Assistant',
   logo: '/your-logo.svg',
   logoDark: '/your-logo-dark.svg',
-  accent: '#your-primary-color',
-  accentDark: '#your-dark-mode-color',
-  startButtonText: 'Talk to Assistant',
-  // Feature toggles
-  supportsChatInput: true,
-  supportsVideoInput: false,
-  supportsScreenShare: false,
+  accent: '#your-brand-color',
+  startButtonText: 'Talk to Agent',
+  supportsChatInput: true,        // Enable chat in popup
+  supportsVideoInput: true,       // Show camera toggle
+  supportsScreenShare: true,      // Show screen share
+  isPreConnectBufferEnabled: true, // Better audio UX
 }
 ```
 
-### Theme System Architecture
-**CSS Custom Properties**: `styles/globals.css` defines comprehensive design tokens:
-```css
-:root {
-  --fg0, --fg1, --fg2: /* Text colors (darkest to lightest) */
-  --bg1, --bg2, --bg3: /* Background layers */
-  --fgAccent, --bgAccent: /* Accent colors */
-  --separator1, --separator2: /* Border colors */
-  --radius: /* Border radius */
-}
-.dark { /* Dark mode overrides */ }
-```
-
-**Theme Toggle**: `ThemeToggle` component with `ApplyThemeScript` prevents flash
-- Theme persisted in localStorage with `THEME_STORAGE_KEY`
-- iframe embeds receive theme via URL parameter
-- Both embed variants share the same theme system
-
-### Component Customization Patterns
-
-**Button System**: `components/ui/button.tsx` uses class-variance-authority:
+### Agent Behavior Debugging
 ```typescript
-buttonVariants = cva(baseClasses, {
-  variants: {
-    variant: { default, primary, destructive, outline, ghost },
-    size: { default, sm, lg, icon }
-  }
-})
+// Common agent troubleshooting pattern in session components:
+useEffect(() => {
+  if (!sessionStarted) return;
+  
+  // 10-second timeout to detect agent connection issues
+  const timeout = setTimeout(() => {
+    if (!isAgentAvailable(agentState)) {
+      const reason = agentState === 'connecting' 
+        ? 'Agent did not join the room' 
+        : 'Agent connected but did not initialize';
+      onDisplayError({ title: 'Session ended', description: reason });
+    }
+  }, 10_000);
+  
+  return () => clearTimeout(timeout);
+}, [agentState, sessionStarted]);
 ```
 
-**LiveKit Component Overrides**: Extend `@livekit/components-react`:
-- `components/livekit/avatar-tile.tsx` - Custom video rendering
-- `components/livekit/device-select.tsx` - Styled device picker
-- `components/livekit/track-toggle.tsx` - Custom mic/camera buttons
+### Theme System Implementation
+- **CSS Variables**: `styles/globals.css` defines `--fg0` (darkest text) to `--fg2` (lightest)
+- **Dark Mode**: `.dark` class overrides with appropriate dark values
+- **Theme Toggle**: `useLocalStorage` + `next-themes` for persistence
 
-### Layout Customization
+## Key Files to Understand
 
-**Session View Structure**: `components/embed-iframe/session-view.tsx`:
-```tsx
-// Main layout areas you can customize:
-1. Agent avatar/video area (top)
-2. Visualizer area (center) - BarVisualizer component
-3. Control bar (bottom) - mic toggle, device select, disconnect
-4. Chat panel (conditional) - if supportsChatInput enabled
-```
+### Core Architecture Files
+- `app-config.ts` - **Single source of truth** for UI/branding customization
+- `hooks/use-connection-details.ts` - LiveKit room creation and token management
+- `hooks/use-agent-control-bar.ts` - Microphone/camera/screenshare control logic
+- `app/api/connection-details/route.ts` - Server-side token generation with room isolation
 
-**Welcome View**: `components/embed-iframe/welcome-view.tsx`:
-- Logo display area
-- Start button with custom text
-- Company branding
-- Feature descriptions
+### iFrame Implementation
+- `app/(iframe)/embed/page.tsx` - The actual embeddable endpoint
+- `components/embed-iframe/agent-client.tsx` - Main container with connection logic
+- `components/embed-iframe/session-view.tsx` - Active conversation UI with `BarVisualizer`
+- `components/embed-iframe/welcome-view.tsx` - Pre-connection state with start button
 
-### Advanced Styling Approaches
+### LiveKit Integration Helpers
+- `components/livekit/track-toggle.tsx` - Custom mic/camera buttons with persistency
+- `components/livekit/device-select.tsx` - Audio/video device picker with styling
+- `hooks/use-chat-and-transcription.ts` - Merges agent transcripts with user chat messages
 
-**CSS Scope**: iFrame embed uses standard CSS cascade
-
-**Motion Animations**: Framer Motion (`motion/react`) used throughout:
-- Page transitions between welcome/session views
-- Button hover effects
-- Tab switching animations
-
-**Responsive Design**: Tailwind breakpoints used consistently:
-- Mobile-first approach
-- Desktop enhancements at `md:` breakpoint
-- Touch-friendly sizing on mobile
-
-## Common Customization Tasks
-
-### UI Branding Changes
-1. **Logo/Colors**: Update `app-config.ts` and add logo files to `public/`
-2. **Typography**: Modify font imports in `styles/globals.css` or add to `fonts/`
-3. **Color Scheme**: Adjust CSS custom properties in `:root` and `.dark` selectors
-4. **Button Styles**: Extend `buttonVariants` in `components/ui/button.tsx`
-
-### Feature Modifications
-1. **Add Controls**: Extend `ControlBarControls` interface and `useAgentControlBar`
-2. **Custom Layouts**: Modify session-view layout structure
-3. **Agent Behavior**: Adjust agent state handling in embed components
-4. **Connection Logic**: Edit `app/api/connection-details/route.ts` for custom room logic
-
-### Build & Deploy Workflow
+## Environment Setup
 ```bash
-# Development cycle
-pnpm dev                        # Start Next.js dev server
-# Make iframe changes -> auto-reload
+# Required .env.local variables for LiveKit connection:
+LIVEKIT_URL=wss://your-project.livekit.cloud
+LIVEKIT_API_KEY=your-api-key
+LIVEKIT_API_SECRET=your-api-secret
 
-# Production deployment
-pnpm build                      # Build Next.js app
+# Development workflow:
+pnpm dev        # Auto-reload for iframe changes
+# Test at: http://localhost:3000 (main demo)
+# Direct iframe: http://localhost:3000/embed?theme=dark
 ```
